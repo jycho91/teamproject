@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deal-Safer — 계약서 방어 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --text: #212529;
+    --text-muted: #666;
+    --text-faint: #999;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0,0,0,0.08);
+    --border: #e0e0e0;
+    --border-light: #eee;
+    --header-bg: #1a1a2e;
+    --header-text: #ffffff;
+    --input-bg: #ffffff;
+    --sample-bg: #f0f0f0;
+    --sample-hover: #e0e0e0;
+    --danger-bg: #fff5f5;
+    --warning-bg: #fffbf0;
+    --safe-bg: #f0fff4;
+    --law-bg: #e8f4fd;
+    --modal-bg: #f8f9fa;
+    --email-bg: #f0f4ff;
+  }
+  body.dark {
+    --bg: #0f0f1a;
+    --text: #e8e8f0;
+    --text-muted: #aaa;
+    --text-faint: #777;
+    --card-bg: #1c1c2e;
+    --card-shadow: rgba(0,0,0,0.4);
+    --border: #3a3a4e;
+    --border-light: #2a2a3e;
+    --header-bg: #0a0a15;
+    --header-text: #ffffff;
+    --input-bg: #2a2a3e;
+    --sample-bg: #2a2a3e;
+    --sample-hover: #3a3a4e;
+    --danger-bg: #2e1a1f;
+    --warning-bg: #2e2818;
+    --safe-bg: #1a2e20;
+    --law-bg: #1a2838;
+    --modal-bg: #2a2a3e;
+    --email-bg: #1e2238;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); transition: background 0.2s, color 0.2s; }
+
+  .header {
+    background: #1e40af;
+    color: white;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo { font-size: 24px; font-weight: 800; color: #e94560; }
+  .logo span { color: white; }
+  .tagline { font-size: 13px; color: #aaa; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Step indicator */
+  .steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .step {
+    flex: 1;
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #999;
+    border-right: 1px solid #eee;
+    cursor: pointer;
+  }
+  .step:last-child { border-right: none; }
+  .step.active { background: #e94560; color: white; font-weight: 600; }
+  .step.done { background: #f0fff4; color: #28a745; }
+  .step-num { display: block; font-size: 20px; margin-bottom: 4px; }
+
+  /* Cards */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .card h2 { font-size: 18px; margin-bottom: 4px; }
+  .card .subtitle { font-size: 13px; color: #666; margin-bottom: 20px; }
+
+  /* Survey-based stance finder */
+  .doc-scope {
+    background: #e8f4fd;
+    border-left: 3px solid #0066cc;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: #0b4b8a;
+    line-height: 1.6;
+  }
+  .doc-scope strong { color: #003e73; }
+  .survey-progress {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .survey-dot {
+    flex: 1;
+    max-width: 48px;
+    height: 5px;
+    border-radius: 3px;
+    background: #e0e0e0;
+    transition: background 0.2s;
+  }
+  .survey-dot.done { background: #e94560; }
+  .survey-q {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #1a1a2e;
+  }
+  .survey-hint {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+  }
+  .survey-options {
+    display: grid;
+    gap: 10px;
+  }
+  .survey-opt {
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .survey-opt:hover { border-color: #e94560; background: #fff5f7; transform: translateX(2px); }
+  .survey-opt .opt-icon { font-size: 22px; }
+  .survey-opt .opt-label { font-weight: 700; font-size: 14px; color: #1a1a2e; }
+  .survey-opt .opt-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .survey-result {
+    background: #f0fff4;
+    border: 2px solid #b7ebc0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .survey-result .result-label { font-size: 12px; color: #666; margin-bottom: 2px; }
+  .survey-result .result-stance { font-size: 17px; font-weight: 800; color: #1e7a36; }
+  .survey-result .result-doctype { font-size: 12px; color: #888; margin-top: 2px; }
+  .survey-reset {
+    background: white;
+    border: 1px solid #b7ebc0;
+    color: #1e7a36;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .survey-reset:hover { background: #e9fbee; }
+
+  /* Contract input */
+  .contract-area {
+    width: 100%;
+    height: 200px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .contract-area:focus { outline: none; border-color: #e94560; }
+
+  .sample-btn {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+  }
+  .sample-btn:hover { background: #e0e0e0; }
+
+  /* Input mode tabs */
+  .input-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 14px;
+    border-bottom: 2px solid #eee;
+  }
+  .input-tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .input-tab:hover { color: #e94560; }
+  .input-tab.active { color: #e94560; border-bottom-color: #e94560; }
+  .input-pane { display: none; }
+  .input-pane.active { display: block; }
+
+  /* File dropzone */
+  .dropzone {
+    border: 2px dashed #d0d0d0;
+    border-radius: 10px;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafafa;
+  }
+  .dropzone:hover { border-color: #e94560; background: #fff5f7; }
+  .dropzone.dragover { border-color: #e94560; background: #fff5f7; transform: scale(1.01); }
+  .dropzone .dz-icon { font-size: 40px; margin-bottom: 8px; }
+  .dropzone .dz-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .dropzone .dz-hint { font-size: 12px; color: #888; }
+  .dropzone input[type="file"] { display: none; }
+
+  .file-info {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #f0fff4;
+    border: 1px solid #b7ebc0;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1e7a36;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .file-info.show { display: flex; }
+  .file-info .fi-name { font-weight: 700; }
+  .file-info .fi-meta { font-size: 11px; color: #666; margin-top: 2px; }
+  .file-info .fi-remove {
+    background: none;
+    border: 1px solid #b7ebc0;
+    color: #1e7a36;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .file-error {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #fff5f5;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #c73652;
+  }
+  .file-error.show { display: block; }
+  .parsing {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #f0f4ff;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #0066cc;
+  }
+  .parsing.show { display: block; }
+
+  /* Analyze button */
+  .analyze-btn {
+    width: 100%;
+    padding: 16px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .analyze-btn:hover { background: #c73652; }
+  .analyze-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 40px;
+  }
+  .loading.show { display: block; }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #f0f0f0;
+    border-top: 4px solid #e94560;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: #666; font-size: 14px; }
+  .loading-step { color: #e94560; font-size: 13px; margin-top: 8px; }
+
+  /* Results */
+  .results { display: none; }
+  .results.show { display: block; }
+
+  .result-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .summary-card {
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .summary-card.danger { background: #fff5f5; border: 2px solid #ffcccc; }
+  .summary-card.warning { background: #fffbf0; border: 2px solid #ffe066; }
+  .summary-card.safe { background: #f0fff4; border: 2px solid #b7ebc0; }
+  .summary-card .num { font-size: 36px; font-weight: 800; }
+  .summary-card.danger .num { color: #e94560; }
+  .summary-card.warning .num { color: #e6ac00; }
+  .summary-card.safe .num { color: #28a745; }
+  .summary-card .label { font-size: 13px; color: #666; margin-top: 4px; }
+
+  /* Clause list */
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .clause-item {
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 12px;
+    border-left: 4px solid;
+  }
+  .clause-item.poison { background: #fff5f5; border-color: #e94560; }
+  .clause-item.missing { background: #fffbf0; border-color: #e6ac00; }
+  .clause-item .clause-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .clause-item .clause-name { font-weight: 700; font-size: 14px; }
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .badge.poison { background: #e94560; color: white; }
+  .badge.missing { background: #e6ac00; color: white; }
+  .badge.law { background: #e8f4fd; color: #0066cc; }
+  .clause-item .clause-text {
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .clause-item .law-cite {
+    font-size: 11px;
+    color: #0066cc;
+    background: #e8f4fd;
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .fix-btn {
+    padding: 8px 16px;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .fix-btn:hover { background: #2a2a4e; }
+
+  /* Redline modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h3 { font-size: 18px; margin-bottom: 16px; }
+  .modal-close {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+  }
+  .redline-box {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .redline-box .label { font-size: 11px; font-weight: 700; color: #999; margin-bottom: 8px; text-transform: uppercase; }
+  .original { color: #cc0000; text-decoration: line-through; font-size: 13px; line-height: 1.6; }
+  .revised { color: #006600; font-size: 13px; line-height: 1.6; margin-top: 8px; }
+  .email-draft {
+    background: #f0f4ff;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .copy-btn {
+    margin-top: 12px;
+    padding: 10px 20px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .disclaimer {
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">Deal<span>-</span>Safer</div>
+    <div class="tagline">계약서 · 사내 규정 · 약관 · 일반 문서 법률 검토 워룸 | Powered by Claude + korean-law-mcp</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="step1">
+      <span class="step-num">①</span>
+      내 입장 설정
+    </div>
+    <div class="step" id="step2">
+      <span class="step-num">②</span>
+      문서 업로드
+    </div>
+    <div class="step" id="step3">
+      <span class="step-num">③</span>
+      AI 분석
+    </div>
+    <div class="step" id="step4">
+      <span class="step-num">④</span>
+      협상 무기 수령
+    </div>
+  </div>
+
+  <!-- Step 1: Stance (survey-based) -->
+  <div class="card" id="card-stance">
+    <h2>몇 가지 질문으로 검토 입장을 자동 설정합니다</h2>
+    <div class="subtitle">답변에 따라 AI가 귀하에게 가장 유리한 관점을 찾아내고, 관련 법령을 자동으로 선택합니다.</div>
+
+    <div class="doc-scope">
+      📌 <strong>Deal-Safer는 계약서뿐 아니라 사내 규정·취업규칙·이용약관, 공문·합의서·서약서 등 일반 문서의 법률 검토도 지원합니다.</strong>
+      문서 유형에 따라 근거 법령(근로기준법, 약관규제법, 개인정보보호법 등)을 자동 전환합니다.
+    </div>
+
+    <div class="survey-progress">
+      <div class="survey-dot" id="dot1"></div>
+      <div class="survey-dot" id="dot2"></div>
+      <div class="survey-dot" id="dot3"></div>
+    </div>
+
+    <div id="surveyContainer"></div>
+
+    <div class="survey-result" id="surveyResult" style="display:none;">
+      <div>
+        <div class="result-label">✅ 검토 입장이 설정되었습니다</div>
+        <div class="result-stance" id="stanceLabel"></div>
+        <div class="result-doctype" id="docTypeLabel"></div>
+      </div>
+      <button class="survey-reset" onclick="resetSurvey()">↺ 다시 선택</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Document input -->
+  <div class="card" id="card-contract">
+    <h2>검토할 문서를 업로드하거나 붙여넣으세요</h2>
+    <div class="subtitle">계약서 · 사내 규정 · 약관 · 일반 문서 모두 지원합니다. PDF, DOCX, TXT 파일 업로드 또는 텍스트 붙여넣기 중 편한 방법을 선택하세요.</div>
+
+    <div class="input-tabs">
+      <div class="input-tab active" data-tab="upload" onclick="switchInputTab('upload')">📎 파일 업로드</div>
+      <div class="input-tab" data-tab="paste" onclick="switchInputTab('paste')">✏️ 텍스트 붙여넣기</div>
+    </div>
+
+    <!-- Upload pane -->
+    <div class="input-pane active" id="pane-upload">
+      <label class="dropzone" id="dropzone" for="fileInput">
+        <div class="dz-icon">📁</div>
+        <div class="dz-title">파일을 드래그하거나 클릭해서 업로드</div>
+        <div class="dz-hint">지원 형식: PDF, DOCX, DOC, TXT (최대 10MB)</div>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+      </label>
+      <div class="parsing" id="parsingStatus">⏳ 문서에서 텍스트를 추출하는 중입니다...</div>
+      <div class="file-info" id="fileInfo">
+        <div>
+          <div class="fi-name" id="fiName"></div>
+          <div class="fi-meta" id="fiMeta"></div>
+        </div>
+        <button class="fi-remove" onclick="removeFile()">✕ 제거</button>
+      </div>
+      <div class="file-error" id="fileError"></div>
+    </div>
+
+    <!-- Paste pane -->
+    <div class="input-pane" id="pane-paste">
+      <textarea class="contract-area" id="contractText" placeholder="계약서 · 사내 규정 · 약관 · 공문 등 문서 내용을 여기에 붙여넣으세요..."></textarea>
+    </div>
+
+    <button class="sample-btn" onclick="loadSample()">📄 샘플 하도급 계약서 불러오기</button>
+  </div>
+
+  <!-- Analyze button -->
+  <button class="analyze-btn" id="analyzeBtn" onclick="startAnalysis()" disabled>
+    🔍 AI 법령 대조 분석 시작
+  </button>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">AI가 계약서를 분석하고 있습니다...</div>
+    <div class="loading-step" id="loadingStep">korean-law-mcp 연결 중...</div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <div class="card">
+      <h2>분석 완료 — 당신의 계약서 현황</h2>
+      <div class="subtitle">하도급법, 표준계약서 기준 대조 결과입니다.</div>
+
+      <div class="result-summary">
+        <div class="summary-card danger">
+          <div class="num">3</div>
+          <div class="label">🚨 독소/불리 조항</div>
+        </div>
+        <div class="summary-card warning">
+          <div class="num">2</div>
+          <div class="label">⚠️ 누락 조항</div>
+        </div>
+        <div class="summary-card safe">
+          <div class="num">8</div>
+          <div class="label">✅ 적정 조항</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Poison clauses -->
+    <div class="card">
+      <div class="section-title">🚨 독소조항 — 즉시 수정 필요</div>
+
+      <div class="clause-item poison">
+        <div class="clause-header">
+          <div class="clause-name">제7조 대금 지급 지연 조항</div>
+          <span class="badge poison">독소조항</span>
+        </div>
+        <div class="clause-text">
+          "원청사는 준공 검사 완료 후 <strong>90일 이내</strong>에 하도급 대금을 지급한다. 단, 원청사의 사정에 따라 이를 연장할 수 있다."
+        </div>
+        <div class="law-cite">📚 근거: 하도급거래 공정화에 관한 법률 제13조 — 법정 지급기한 60일</div>
+        <button class="fix-btn" onclick="showRedline(0)">⚡ 수정안 + 역제안 이메일 보기</button>
+      </div>
+
+      <div class="clause-item poison">
+        <div class="clause-header">
+          <div class="clause-name">제12조 일방적 계약 해지 조항</div>
+          <span class="badge poison">독소조항</span>
+        </div>
+        <div class="clause-text">
+          "원청사는 사전 통보 없이 언제든지 본 계약을 해지할 수 있으며, 이 경우 수급사업자는 기시공 부분에 대한 정산만을 청구할 수 있다."
+        </div>
+        <div class="law-cite">📚 근거: 하도급법 제16조 — 부당 계약 해지 금지, 30일 전 서면 통보 의무</div>
+        <button class="fix-btn" onclick="showRedline(1)">⚡ 수정안 + 역제안 이메일 보기</button>
+      </div>
+
+      <div class="clause-item poison">
+        <div class="clause-header">
+          <div class="clause-name">제15조 하자담보 책임 기간</div>
+          <span class="badge poison">독소조항</span>
+        </div>
+        <div class="clause-text">
+          "수급사업자는 준공 후 <strong>5년간</strong> 발생하는 모든 하자에 대해 무상 보수 의무를 진다."
+        </div>
+        <div class="law-cite">📚 근거: 건설산업기본법 제28조 — 공종별 담보 기간 1~10년 상이, 일괄 5년은 과도</div>
+        <button class="fix-btn" onclick="showRedline(2)">⚡ 수정안 + 역제안 이메일 보기</button>
+      </div>
+    </div>
+
+    <!-- Missing clauses -->
+    <div class="card">
+      <div class="section-title">⚠️ 누락 조항 — 반드시 추가 요구하세요</div>
+
+      <div class="clause-item missing">
+        <div class="clause-header">
+          <div class="clause-name">지연이자 조항 누락</div>
+          <span class="badge missing">누락</span>
+        </div>
+        <div class="clause-text">
+          현재 계약서에 대금 지급 지연 시 이자 조항이 없습니다. 원청이 대금을 늦게 줘도 패널티가 없는 구조입니다.
+        </div>
+        <div class="law-cite">📚 표준: 지연이자율 연 15.5% (하도급법 시행령 제6조)</div>
+        <button class="fix-btn" onclick="showRedline(3)">⚡ 추가 조항 초안 보기</button>
+      </div>
+
+      <div class="clause-item missing">
+        <div class="clause-header">
+          <div class="clause-name">재료비 변동 조항 누락</div>
+          <span class="badge missing">누락</span>
+        </div>
+        <div class="clause-text">
+          자재 가격 급등 시 계약금액 조정 근거가 없습니다. 물가 변동으로 인한 손실을 수급사업자가 전부 부담하는 구조입니다.
+        </div>
+        <div class="law-cite">📚 표준: 계약금액 조정 조항 (하도급법 제16조의2)</div>
+        <button class="fix-btn" onclick="showRedline(4)">⚡ 추가 조항 초안 보기</button>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      이 분석은 협상 참고용이며 법적 조언이 아닙니다. | 법령 출처: 국가법령정보센터 (korean-law-mcp 실시간 연동)
+    </div>
+  </div>
+
+</div>
+
+<!-- Redline Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalContent">
+    <button class="modal-close" onclick="closeModalBtn()">×</button>
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let selectedStance = null;
+
+const redlineData = [
+  {
+    title: "제7조 대금 지급 조항 — 수정안",
+    original: "원청사는 준공 검사 완료 후 90일 이내에 하도급 대금을 지급한다. 단, 원청사의 사정에 따라 이를 연장할 수 있다.",
+    revised: "원청사는 준공 검사 완료 후 60일 이내에 하도급 대금을 지급한다. 단, 부득이한 사유가 있을 경우 수급사업자의 서면 동의를 얻어 1회에 한하여 30일 이내로 연장할 수 있으며, 지연 시 미지급액에 대해 연 15.5%의 지연이자를 지급한다.",
+    email: `안녕하세요, [원청사 담당자] 귀중
+
+보내주신 계약서를 검토하였습니다.
+
+제7조 대금 지급 조항과 관련하여 하도급거래 공정화에 관한 법률 제13조에 따라 법정 지급기한이 60일임을 확인하였습니다. 현재 초안의 90일 조항은 관련 법령에 부합하지 않아 수정을 요청드립니다.
+
+아울러 지연이자 조항 부재 시 상호 분쟁의 소지가 있어, 법정 기준인 연 15.5%의 지연이자 조항을 추가하는 것이 양측 모두에게 명확할 것으로 판단됩니다.
+
+수정 제안 내용을 첨부드리오니 검토 부탁드립니다. 원만한 협력 관계를 위해 긍정적 검토를 부탁드립니다.
+
+감사합니다.
+[수급사업자 담당자]`
+  },
+  {
+    title: "제12조 계약 해지 조항 — 수정안",
+    original: "원청사는 사전 통보 없이 언제든지 본 계약을 해지할 수 있으며, 이 경우 수급사업자는 기시공 부분에 대한 정산만을 청구할 수 있다.",
+    revised: "원청사가 계약을 해지하고자 할 경우, 해지 예정일로부터 최소 30일 전에 수급사업자에게 서면으로 통보하여야 한다. 원청사의 귀책사유로 인한 해지 시, 수급사업자는 기시공 부분 정산금 외에 예상 이익 및 계약 이행 준비에 투입된 비용을 청구할 수 있다.",
+    email: `안녕하세요, [원청사 담당자] 귀중
+
+계약서 제12조 해지 조항 검토 의견을 말씀드립니다.
+
+하도급법 제16조에 따르면 원청사는 정당한 사유 없이 일방적으로 계약을 해지할 수 없으며, 해지 시 30일 전 서면 통보 의무가 있습니다. 현재 초안은 이 요건을 충족하지 않아 법적 리스크가 있습니다.
+
+양사의 계약 안정성을 위해 수정 조항을 제안드리며, 원청사의 운영 유연성을 최대한 반영하면서도 법적 기준을 준수하는 방향으로 조율하겠습니다.
+
+검토 후 회신 부탁드립니다.
+
+[수급사업자 담당자]`
+  },
+  {
+    title: "제15조 하자담보 책임 — 수정안",
+    original: "수급사업자는 준공 후 5년간 발생하는 모든 하자에 대해 무상 보수 의무를 진다.",
+    revised: "수급사업자의 하자담보 책임 기간은 건설산업기본법 제28조 및 시행령 별표4에 따른 공종별 담보 기간을 따른다. (철근콘크리트 10년, 철골 7년, 방수 3년, 마감 2년 등) 단, 수급사업자의 귀책사유가 아닌 하자에 대해서는 책임을 지지 않는다.",
+    email: `안녕하세요, [원청사 담당자] 귀중
+
+제15조 하자담보 조항 관련 수정 의견을 드립니다.
+
+현재 초안의 '일괄 5년' 조항은 건설산업기본법상 공종별로 상이한 담보 기간을 단순화한 것으로, 실제 분쟁 발생 시 적용 기준이 불명확할 수 있습니다.
+
+법령 기준에 따른 공종별 담보 기간 적용을 제안드리며, 이는 원청사에도 명확한 기준이 되어 분쟁 예방에 도움이 됩니다.
+
+수정 제안 첨부드립니다.
+
+[수급사업자 담당자]`
+  },
+  {
+    title: "지연이자 조항 추가 초안",
+    original: "(현재 계약서에 해당 조항 없음)",
+    revised: "제○조 (지연이자) 원청사가 제○조의 대금 지급 기한을 초과하여 대금을 지급하는 경우, 초과 기간에 대해 미지급 금액에 연 15.5%의 비율로 계산한 지연이자를 함께 지급하여야 한다. (하도급거래 공정화에 관한 법률 시행령 제6조)",
+    email: `안녕하세요, [원청사 담당자] 귀중
+
+계약서 검토 중 지연이자 조항이 누락된 것을 확인하였습니다.
+
+하도급법 시행령 제6조에 따라 대금 지급 지연 시 법정 이자율(연 15.5%)이 자동 적용되나, 계약서에 명시하는 것이 양사 모두에게 분쟁 예방 차원에서 바람직합니다.
+
+표준 조항 초안을 첨부드리니 검토 부탁드립니다.
+
+[수급사업자 담당자]`
+  },
+  {
+    title: "재료비 변동 조항 추가 초안",
+    original: "(현재 계약서에 해당 조항 없음)",
+    revised: "제○조 (계약금액 조정) 계약 체결 후 재료비·노무비·경비 등의 변동으로 인해 계약금액이 현저히 불합리하게 된 경우, 수급사업자는 원청사에 계약금액 조정을 요청할 수 있다. 원청사는 정당한 사유 없이 이를 거부할 수 없다. (하도급법 제16조의2)",
+    email: `안녕하세요, [원청사 담당자] 귀중
+
+최근 자재 가격 변동성이 큰 점을 고려하여, 계약금액 조정 조항 추가를 요청드립니다.
+
+하도급법 제16조의2에 따라 원청사는 현저한 물가 변동 시 수급사업자의 금액 조정 요청에 협의할 의무가 있습니다. 계약서에 이를 명시함으로써 추후 발생할 수 있는 분쟁을 사전에 예방하고자 합니다.
+
+안정적인 협력 관계를 위한 조항임을 이해해 주시기 바랍니다.
+
+[수급사업자 담당자]`
+  }
+];
+
+/* ============ 설문형 입장 탐지기 ============ */
+const surveyFlow = {
+  start: {
+    question: '1단계. 어떤 종류의 문서를 검토하시나요?',
+    options: [
+      { icon: '📜', label: '계약서', desc: '양 당사자 간 체결되는 거래·임대차·용역 계약',     next: 'contract-role' },
+      { icon: '🏢', label: '사내 규정 · 취업규칙 · 약관', desc: '회사 내부 정책, 이용약관, 개인정보 처리방침', next: 'policy-view' },
+      { icon: '📝', label: '일반 문서', desc: '공문, 합의서, 각서, 서약서, 양해각서(MOU) 등',   next: 'doc-view' },
+    ]
+  },
+  'contract-role': {
+    question: '2단계. 이 계약에서 귀하의 위치는 어디에 해당하나요?',
+    options: [
+      { icon: '🏗️', label: '공사·용역을 발주받는 쪽', desc: '원청으로부터 하도급/외주를 받는 수급사업자', next: 'negotiation-power', _stance: '하도급 업체', _doctype: '하도급 계약서' },
+      { icon: '🏠', label: '부동산을 빌리는 쪽',      desc: '전세·월세·상가 임대차 세입자',          next: 'negotiation-power', _stance: '임차인',       _doctype: '임대차 계약서' },
+      { icon: '💼', label: '개인 자격의 용역 수행자', desc: '프리랜서, 외주 개발자, 작가, 디자이너 등', next: 'negotiation-power', _stance: '프리랜서',     _doctype: '용역·외주 계약서' },
+      { icon: '🤝', label: '그 외 일반 당사자',       desc: '물품 공급·납품·업무위탁·MOU 등',       next: 'negotiation-power', _stance: '일반 계약 당사자', _doctype: '일반 계약서' },
+    ]
+  },
+  'negotiation-power': {
+    question: '3단계. 상대방과의 협상 주도권은 어떤가요?',
+    options: [
+      { icon: '⚖️', label: '상대방이 주도권을 가짐', desc: '상대가 계약서를 일방적으로 작성해 보내옴 — 공격적 검토 모드', _stanceSuffix: ' (방어 모드)' },
+      { icon: '🤝', label: '대등한 관계',            desc: '조건을 서로 조율 가능 — 균형 검토 모드',                 _stanceSuffix: ' (균형 모드)' },
+      { icon: '✍️', label: '내가 초안을 작성',       desc: '리스크·누락 조항 점검 위주 — 리스크 점검 모드',           _stanceSuffix: ' (리스크 점검)' },
+    ]
+  },
+  'policy-view': {
+    question: '2단계. 어떤 관점에서 검토하시나요?',
+    options: [
+      { icon: '👤', label: '임직원 · 이용자 입장', desc: '본인에게 불리한 조항이나 권리 침해 요소 탐지',  _stance: '임직원 / 이용자', _doctype: '사내 규정 · 약관' },
+      { icon: '🛡️', label: '컴플라이언스 담당자', desc: '근로기준법·약관규제법 등 법령 정합성 점검',      _stance: '컴플라이언스 담당자', _doctype: '사내 규정 · 약관' },
+      { icon: '📋', label: '규정 제정·개정 담당', desc: '최신 법령 반영 여부와 분쟁 소지 조항 점검',      _stance: '규정 작성자',       _doctype: '사내 규정 · 약관' },
+    ]
+  },
+  'doc-view': {
+    question: '2단계. 이 문서에서 귀하의 입장은?',
+    options: [
+      { icon: '🖊️', label: '서명·날인하는 당사자', desc: '본인이 법적 책임을 지게 되는 문서 — 불리한 문구 탐지', _stance: '문서 서명 당사자', _doctype: '일반 문서' },
+      { icon: '📤', label: '문서를 발송·요구하는 쪽', desc: '상대에게 의무를 지우는 문서 — 유효성·강제력 점검',   _stance: '문서 발신자',      _doctype: '일반 문서' },
+      { icon: '🔍', label: '제3자 법률 검토자',    desc: '분쟁 가능성·법적 리스크 중립 점검',                 _stance: '중립 검토자',      _doctype: '일반 문서' },
+    ]
+  },
+};
+
+let surveyState = { step: 'start', answers: [], stance: null, doctype: null };
+
+function renderSurvey(stepKey) {
+  const step = surveyFlow[stepKey];
+  surveyState.step = stepKey;
+  const container = document.getElementById('surveyContainer');
+  container.innerHTML = `
+    <div class="survey-q">${step.question}</div>
+    <div class="survey-hint">해당되는 항목을 하나 선택해 주세요.</div>
+    <div class="survey-options">
+      ${step.options.map((opt, i) => `
+        <div class="survey-opt" onclick="answerSurvey(${i})">
+          <div class="opt-icon">${opt.icon}</div>
+          <div>
+            <div class="opt-label">${opt.label}</div>
+            <div class="opt-desc">${opt.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  const totalAnswered = surveyState.answers.length;
+  document.querySelectorAll('.survey-dot').forEach((d, i) => {
+    d.classList.toggle('done', i <= totalAnswered);
+  });
+}
+
+function answerSurvey(idx) {
+  const step = surveyFlow[surveyState.step];
+  const opt = step.options[idx];
+  surveyState.answers.push({ step: surveyState.step, idx });
+
+  // 누적: stance 후보 / 문서유형 저장
+  if (opt._stance)   surveyState.stance   = opt._stance;
+  if (opt._doctype)  surveyState.doctype  = opt._doctype;
+
+  // 최종 단계: suffix 붙이고 확정
+  if (opt._stanceSuffix) {
+    surveyState.stance = (surveyState.stance || '일반') + opt._stanceSuffix;
+    finalizeSurvey();
+    return;
+  }
+
+  // 다음 질문이 있으면 진행, 없으면 확정
+  if (opt.next && surveyFlow[opt.next]) {
+    renderSurvey(opt.next);
+  } else {
+    finalizeSurvey();
+  }
+}
+
+function finalizeSurvey() {
+  selectedStance = surveyState.stance;
+  document.getElementById('surveyContainer').style.display = 'none';
+  document.getElementById('surveyResult').style.display = 'flex';
+  document.getElementById('stanceLabel').textContent = surveyState.stance;
+  document.getElementById('docTypeLabel').textContent =
+    surveyState.doctype ? `📄 문서 유형: ${surveyState.doctype}` : '';
+  document.querySelectorAll('.survey-dot').forEach(d => d.classList.add('done'));
+  checkReady();
+}
+
+function resetSurvey() {
+  surveyState = { step: 'start', answers: [], stance: null, doctype: null };
+  selectedStance = null;
+  document.getElementById('surveyContainer').style.display = 'block';
+  document.getElementById('surveyResult').style.display = 'none';
+  renderSurvey('start');
+  checkReady();
+}
+
+// 초기화
+renderSurvey('start');
+
+function loadSample() {
+  switchInputTab('paste');
+  document.getElementById('contractText').value = `하도급 공사 계약서
+
+제1조 (계약의 목적)
+본 계약은 원청사 (주)대한건설과 수급사업자 (주)한국하도급 간의 ○○아파트 신축공사 중 토목공사에 관한 사항을 정함을 목적으로 한다.
+
+제5조 (공사 기간)
+수급사업자는 2026년 3월 1일부터 2026년 12월 31일까지 공사를 완료하여야 한다.
+
+제7조 (대금 지급)
+원청사는 준공 검사 완료 후 90일 이내에 하도급 대금을 지급한다. 단, 원청사의 사정에 따라 이를 연장할 수 있다.
+
+제12조 (계약 해지)
+원청사는 사전 통보 없이 언제든지 본 계약을 해지할 수 있으며, 이 경우 수급사업자는 기시공 부분에 대한 정산만을 청구할 수 있다.
+
+제15조 (하자담보 책임)
+수급사업자는 준공 후 5년간 발생하는 모든 하자에 대해 무상 보수 의무를 진다.
+
+제18조 (분쟁 해결)
+본 계약과 관련한 분쟁은 원청사 소재지를 관할하는 법원을 전속 관할로 한다.`;
+  checkReady();
+}
+
+function checkReady() {
+  const hasStance = selectedStance !== null;
+  const hasContract = document.getElementById('contractText').value.trim().length > 50;
+  document.getElementById('analyzeBtn').disabled = !(hasStance && hasContract);
+}
+
+document.getElementById('contractText').addEventListener('input', checkReady);
+
+/* ============ 파일 업로드 / PDF·DOCX·TXT 파싱 ============ */
+function switchInputTab(tab) {
+  document.querySelectorAll('.input-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  document.getElementById('pane-upload').classList.toggle('active', tab === 'upload');
+  document.getElementById('pane-paste').classList.toggle('active', tab === 'paste');
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+['dragenter', 'dragover'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); })
+);
+['dragleave', 'drop'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); })
+);
+dropzone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function showFileError(msg) {
+  const el = document.getElementById('fileError');
+  el.textContent = '❌ ' + msg;
+  el.classList.add('show');
+  document.getElementById('fileInfo').classList.remove('show');
+  document.getElementById('parsingStatus').classList.remove('show');
+}
+function clearFileError() {
+  document.getElementById('fileError').classList.remove('show');
+}
+
+async function handleFile(file) {
+  clearFileError();
+  if (file.size > MAX_FILE_SIZE) {
+    showFileError(`파일 크기가 10MB를 초과합니다 (${(file.size/1024/1024).toFixed(1)}MB)`);
+    return;
+  }
+  const name = file.name.toLowerCase();
+  const ext = name.split('.').pop();
+  const supported = ['pdf', 'docx', 'doc', 'txt'];
+  if (!supported.includes(ext)) {
+    showFileError('지원하지 않는 형식입니다. PDF, DOCX, DOC, TXT 파일만 업로드 가능합니다.');
+    return;
+  }
+
+  document.getElementById('parsingStatus').classList.add('show');
+  document.getElementById('fileInfo').classList.remove('show');
+
+  try {
+    let text = '';
+    if (ext === 'pdf')        text = await extractPdfText(file);
+    else if (ext === 'docx')  text = await extractDocxText(file);
+    else if (ext === 'doc')   { showFileError('구형 .doc 파일은 지원되지 않습니다. .docx 또는 PDF로 변환 후 업로드해주세요.'); return; }
+    else                      text = await file.text();
+
+    text = (text || '').trim();
+    if (text.length < 30) {
+      showFileError('문서에서 충분한 텍스트를 추출하지 못했습니다. 스캔본 PDF의 경우 OCR이 필요할 수 있습니다.');
+      return;
+    }
+
+    document.getElementById('contractText').value = text;
+    document.getElementById('parsingStatus').classList.remove('show');
+
+    const info = document.getElementById('fileInfo');
+    document.getElementById('fiName').textContent = '✅ ' + file.name;
+    document.getElementById('fiMeta').textContent =
+      `${(file.size/1024).toFixed(1)} KB · ${text.length.toLocaleString()}자 추출됨`;
+    info.classList.add('show');
+
+    checkReady();
+  } catch (err) {
+    console.error(err);
+    showFileError('파일 처리 중 오류가 발생했습니다: ' + (err.message || err));
+  }
+}
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) throw new Error('PDF 라이브러리 로드 실패');
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    out += content.items.map(it => it.str).join(' ') + '\n\n';
+  }
+  return out;
+}
+
+async function extractDocxText(file) {
+  if (!window.mammoth) throw new Error('DOCX 라이브러리 로드 실패');
+  const buf = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer: buf });
+  return result.value;
+}
+
+function removeFile() {
+  fileInput.value = '';
+  document.getElementById('contractText').value = '';
+  document.getElementById('fileInfo').classList.remove('show');
+  clearFileError();
+  checkReady();
+}
+
+const loadingMessages = [
+  'korean-law-mcp 연결 중...',
+  '국가법령정보센터 API 호출 중...',
+  '하도급거래 공정화에 관한 법률 로딩...',
+  '계약서 조항 파싱 중...',
+  'AI 법령 대조 분석 중...',
+  '독소조항 식별 중...',
+  '협상 수정안 생성 중...',
+  '분석 완료!'
+];
+
+function startAnalysis() {
+  document.getElementById('analyzeBtn').style.display = 'none';
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('step2').classList.add('done');
+  document.getElementById('step3').classList.add('active');
+
+  let i = 0;
+  const interval = setInterval(() => {
+    document.getElementById('loadingStep').textContent = loadingMessages[i];
+    i++;
+    if (i >= loadingMessages.length) {
+      clearInterval(interval);
+      setTimeout(showResults, 800);
+    }
+  }, 500);
+}
+
+function showResults() {
+  document.getElementById('loading').classList.remove('show');
+  document.getElementById('results').classList.add('show');
+  document.getElementById('step3').classList.remove('active');
+  document.getElementById('step3').classList.add('done');
+  document.getElementById('step4').classList.add('active');
+  window.scrollTo({ top: document.getElementById('results').offsetTop - 20, behavior: 'smooth' });
+}
+
+function showRedline(index) {
+  const data = redlineData[index];
+  document.getElementById('modalTitle').textContent = data.title;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="redline-box">
+      <div class="label">원본 (삭제/수정)</div>
+      <div class="original">${data.original}</div>
+      <div class="revised">✅ ${data.revised}</div>
+    </div>
+    <div class="redline-box">
+      <div class="label">📧 상대방에게 보낼 이메일 초안</div>
+      <div class="email-draft">${data.email}</div>
+      <button class="copy-btn" onclick="copyEmail(${index})">📋 이메일 복사</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function copyEmail(index) {
+  navigator.clipboard.writeText(redlineData[index].email);
+  alert('이메일 초안이 복사되었습니다!');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('show');
+  }
+}
+
+function closeModalBtn() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+</script>
+</body>
+</html>
